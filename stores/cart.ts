@@ -4,6 +4,7 @@ import type { CartItem } from '../types/cartItem'
 export const useCartStore = defineStore('cart', {
   state: () => ({
     cartItems: [] as CartItem[],
+    orders: [] as any[],
     error: null as string | null,
     loading: false,
   }),
@@ -14,15 +15,8 @@ export const useCartStore = defineStore('cart', {
       try {
         const config = useRuntimeConfig()
         const supabase = useSupabaseClient()
-
-        // Wait for session to be ready (retry up to 5 times)
-        let session = null
-        for (let i = 0; i < 5; i++) {
-          const { data } = await supabase.auth.getSession()
-          session = data.session
-          if (session) break
-          await new Promise((r) => setTimeout(r, 300))
-        }
+        const { data: sessionData } = await supabase.auth.getSession()
+        const session = sessionData.session
         if (!session) throw new Error('User not logged in')
 
         const userId = session.user.id
@@ -37,21 +31,13 @@ export const useCartStore = defineStore('cart', {
           }
         )
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || 'Failed to fetch cart items')
-        }
+        if (!response.ok) throw new Error('Failed to fetch cart items')
 
-        const cartItems: CartItem[] = await response.json()
-
-        this.cartItems = cartItems.map((item) => ({
-          ...item,
-          product: item.product_id,
-        }))
+        const items: CartItem[] = await response.json()
+        this.cartItems = items.map((item) => ({ ...item, product: item.product_id }))
         this.error = null
       } catch (err: any) {
         this.error = err.message
-        console.error('Fetch cart error:', err)
       } finally {
         this.loading = false
       }
@@ -61,11 +47,10 @@ export const useCartStore = defineStore('cart', {
       try {
         const config = useRuntimeConfig()
         const supabase = useSupabaseClient()
-
         const { data } = await supabase.auth.getSession()
         if (!data.session) throw new Error('User not logged in')
 
-        const response = await fetch(`${config.public.supabaseUrl}/rest/v1/cart_items?id=eq.${itemId}`, {
+        await fetch(`${config.public.supabaseUrl}/rest/v1/cart_items?id=eq.${itemId}`, {
           method: 'DELETE',
           headers: {
             apikey: config.public.supabaseKey,
@@ -73,17 +58,106 @@ export const useCartStore = defineStore('cart', {
           },
         })
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || 'Failed to remove item from cart')
+        this.cartItems = this.cartItems.filter((item) => item.id !== itemId)
+      } catch (err: any) {
+        this.error = err.message
+      }
+    },
+
+    async placeOrder(orderDetails: {
+      order_name: string
+      address: string
+      city: string
+      phone: string
+      email: string
+      payment_method: string
+      notes: string
+    }) {
+      this.loading = true
+      try {
+        const config = useRuntimeConfig()
+        const supabase = useSupabaseClient()
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (!sessionData?.session) throw new Error('User not logged in')
+
+        const userId = sessionData.session.user.id
+        const accessToken = sessionData.session.access_token
+
+        const totalAmount = this.cartItems.reduce((sum, item) => {
+          const price = item.product?.price ?? 0
+          return sum + price * item.quantity
+        }, 0)
+
+        const orderPayload = {
+          user_id: userId,
+          total_amount: totalAmount,
+          order_name: orderDetails.order_name,
+          address: orderDetails.address,
+          city: orderDetails.city,
+          phone: orderDetails.phone,
+          email: orderDetails.email,
+          payment_method: orderDetails.payment_method,
+          notes: orderDetails.notes,
         }
 
-        // Remove item from local state immediately
-        this.cartItems = this.cartItems.filter((item) => item.id !== itemId)
+        const orderResponse = await fetch(`${config.public.supabaseUrl}/rest/v1/orders`, {
+          method: 'POST',
+          headers: {
+            apikey: config.public.supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify(orderPayload),
+        })
+
+        if (!orderResponse.ok) throw new Error('Failed to place order')
+
+        const cartItemIds = this.cartItems.map((item) => item.id)
+
+        await fetch(
+          `${config.public.supabaseUrl}/rest/v1/cart_items?id=in.(${cartItemIds.join(',')})`,
+          {
+            method: 'DELETE',
+            headers: {
+              apikey: config.public.supabaseKey,
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        )
+
+        this.cartItems = []
+        this.error = null
+      } catch (error: any) {
+        this.error = error.message
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchOrders() {
+      this.loading = true
+      try {
+        const supabase = useSupabaseClient()
+        const { data: sessionData } = await supabase.auth.getSession()
+        const session = sessionData.session
+        if (!session) throw new Error('User not logged in')
+
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        this.orders = data || []
         this.error = null
       } catch (err: any) {
         this.error = err.message
-        console.error('Remove from cart error:', err)
+      } finally {
+        this.loading = false
       }
     },
   },

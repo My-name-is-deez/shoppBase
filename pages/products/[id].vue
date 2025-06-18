@@ -2,7 +2,7 @@
   <div class="max-w-6xl mx-auto px-4 py-6">
     <!-- Back Button -->
     <button 
-      @click="navigateTo('/')"
+      @click="goBack"
       class="mb-6 inline-flex items-center text-blue-600 hover:text-blue-800 font-medium transition"
     >
       <span class="mr-1 text-xl">←</span> Back to Products
@@ -74,6 +74,12 @@ onMounted(async ()=>{
 const handleAddToCart = async () => {
   await productStore.addToCart(product.value.id)
   toast.success('item added to cart!')
+}
+
+const router = useRouter()
+
+function goBack() {
+  router.go(-1)
 }
 
 </script>

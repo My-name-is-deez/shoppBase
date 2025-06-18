@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-6xl mx-auto py-10 px-4">
     <h1 class="text-3xl font-bold text-gray-800 mb-8">
-      Category: {{ categoryName }}
+      <span class="text-orange-400">Category</span>: {{ categoryName }}
     </h1>
 
     <div v-if="products.length === 0" class="text-gray-600">

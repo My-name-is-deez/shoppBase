@@ -16,34 +16,77 @@
         />
       </div>
 
-      <!-- Action buttons -->
-      <div class="flex items-center gap-4">
-        <NuxtLink  v-if="!user" to="/login" class="text-sm px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-         Login
+      <!-- Right Buttons -->
+      <div class="flex items-center gap-4 relative">
+        <!-- Login -->
+        <NuxtLink
+          v-if="!user"
+          to="/login"
+          class="text-sm px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Login
         </NuxtLink>
-       <button v-if="user"
-        @click="logout"
-        class="text-sm px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-         Logout
-        </button>
 
-        <NuxtLink to="/cart" class="relative text-sm px-4 py-2 bg-gray-100 rounded hover:bg-gray-200 flex items-center gap-2">
+        <!-- Orders -->
+        <NuxtLink
+          v-if="user"
+          to="/orders"
+          class="text-sm px-4 py-2 bg-orange-400 text-white rounded hover:bg-orange-600"
+        >
+          Orders
+        </NuxtLink>
+
+        <!-- Cart -->
+        <NuxtLink
+          to="/cart"
+          class="relative text-sm px-4 py-2 bg-gray-100 rounded hover:bg-gray-200 flex items-center gap-2"
+        >
           🛒
           <span>Cart</span>
-          <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">2</span>
+          <span
+            class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+          >
+            2
+          </span>
         </NuxtLink>
+
+        <!-- Avatar Dropdown -->
+        <div v-if="user" class="relative">
+          <img
+            @click="toggleDropdown"
+            :src="user.user_metadata?.avatar_url"
+            alt="User Avatar"
+            class="h-10 w-10 rounded-full object-cover cursor-pointer"
+          />
+
+          <div
+            v-if="showDropdown"
+            class="absolute right-0 mt-2 w-32 bg-white border rounded shadow-md z-10"
+          >
+            <button
+              @click="logout"
+              class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
-      <img 
-      class=" h-10 w-10 rounded-full object-cover ml-10 cursor-pointer"
-      v-if="user" :src="user?.user_metadata?.avatar_url" alt="">
     </div>
   </nav>
-  <categores/>
+
+  <!-- Categories Section -->
+  <categores />
 </template>
 
 <script setup lang="ts">
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
+const showDropdown = ref(false)
+
+function toggleDropdown() {
+  showDropdown.value = !showDropdown.value
+}
 
 async function logout() {
   const { error } = await supabase.auth.signOut()

@@ -8,7 +8,10 @@
         >
           <NuxtLink
             :to="`/categorys/${category}`"
-            class="text-sm font-medium text-gray-600 hover:text-blue-600 cursor-pointer transition-colors duration-200"
+            :class="[
+              'text-sm font-medium cursor-pointer transition-colors duration-200',
+              isActive(category) ? 'text-orange-500' : 'text-gray-600 hover:text-blue-600'
+            ]"
           >
             {{ category }}
           </NuxtLink>
@@ -19,7 +22,9 @@
 </template>
 
 
+
 <script setup lang="ts">
+const route= useRoute()
 const categories = [
   "Gaming",
   "Electronics",
@@ -32,6 +37,10 @@ const categories = [
   "Laptops",
   "Watches"
 ];
+
+function isActive(category: string) {
+  return route.path === `/categorys/${category}`
+}
 </script>
 
 <style scoped>
