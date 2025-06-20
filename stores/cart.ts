@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { CartItem } from '../types/cartItem'
 
+
 export const useCartStore = defineStore('cart', {
   state: () => ({
     cartItems: [] as CartItem[],
@@ -161,4 +162,10 @@ export const useCartStore = defineStore('cart', {
       }
     },
   },
+
+  persist: {
+  paths: ['cartItems'], 
+},
+
+
 })

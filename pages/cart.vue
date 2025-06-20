@@ -4,12 +4,8 @@
       <h1 class="text-3xl font-bold mb-6">Your Cart</h1>
 
       <div v-if="loading" class="text-center py-10">Loading cart...</div>
-
       <div v-else-if="error" class="text-red-600 mb-4">{{ error }}</div>
-
-      <div v-else-if="cartItems.length === 0" class="text-gray-600">
-        Your cart is empty.
-      </div>
+      <div v-else-if="cartItems.length === 0" class="text-gray-600">Your cart is empty.</div>
 
       <div v-else>
         <ul class="space-y-4 mb-8">
@@ -30,11 +26,9 @@
               </p>
               <p class="text-sm text-gray-500">Quantity: {{ item.quantity }}</p>
             </div>
-
             <div class="font-bold text-lg">
               ${{ item.product?.price ? (item.product.price * item.quantity).toFixed(2) : '0.00' }}
             </div>
-
             <button
               @click="removeItem(item.id)"
               class="text-red-600 hover:text-red-800 font-bold text-xl"
@@ -57,23 +51,39 @@
   </ClientOnly>
 </template>
 
-<script setup lang="ts">
-import { useRouter } from 'vue-router'
 
-const router=useRouter()
+<script setup lang="ts">
+import { useToast } from 'vue-toastification'
+import { useRouter } from 'vue-router'
+import { useCartStore } from '~/stores/cart'
+import { useSupabaseClient } from '#imports'
+
+const router = useRouter()
 const toast = useToast()
 const cartStore = useCartStore()
-const { cartItems, error, loading, fetchCartItems, removeFromCart } = cartStore
+const supabase = useSupabaseClient()
 
-onMounted(async () => {
-  await fetchCartItems()
+const cartItems = computed(() => cartStore.cartItems)
+const error = computed(() => cartStore.error)
+const loading = computed(() => cartStore.loading)
+
+const sessionLoaded = ref(false)
+
+watchEffect(async () => {
+  const { data } = await supabase.auth.getSession()
+  if (data.session && !sessionLoaded.value) {
+    sessionLoaded.value = true
+    await cartStore.fetchCartItems()
+  }
 })
 
 async function removeItem(itemId: string) {
-  await removeFromCart(itemId)
+  await cartStore.removeFromCart(itemId)
 }
 
-async function placeOrder() {
+function placeOrder() {
   router.push('/checkout')
 }
 </script>
+
+
